@@ -4,7 +4,6 @@ import re
 import pickle
 import shutil
 from pprint import pprint
-from typing import DefaultDict
 from nltk.tokenize import word_tokenize
 from nltk.stem.porter import *
 from collections import defaultdict
@@ -14,11 +13,11 @@ INDEX_THRESHOLD = 10
 INDEX_ROOT_PATH = "/Users/puloma/Code/CS121/Assignment #3/index"
 DATA_ROOT_PATH = "/Users/puloma/Code/CS121/Assignment #3/DEV"
 
+# return list of relative paths to all files within given directory
 def getListOfFiles(root_dir, curr_dir):
-    # create a list of file and sub directories 
     listOfFile = os.listdir(root_dir + "/" + curr_dir)
     allFiles = list()
-    # Iterate over all the entries
+    # iterate over all the entries
     for entry in listOfFile:
         fullPath = os.path.join(root_dir + "/" + curr_dir, entry)
         if os.path.isdir(fullPath):
@@ -27,33 +26,44 @@ def getListOfFiles(root_dir, curr_dir):
             allFiles.append(curr_dir + "/" + entry)
     return allFiles
 
-def get_clean_text(text):
+def getCleanText(text):
     return re.sub(r'[^\w\s]', '', BeautifulSoup(text, "lxml").text)
 
 def computeWordFrequencies(d, tokens):
     for token in tokens:
             d[token] += 1
 
+# get path of directories and filename for token using hash value
 def getTokenPath(token):
+    # get hash value of token
+    # convert to hex string and truncate the first 2 characters (which are 0x)
+    # pad with 0s to make 16 character string
     hex_string = hex(hash(token))[2:].zfill(16)
+    # creates list using pairs of characters from hex string
     hex_list = list (hex_string[0+i:2+i] for i in range(0, len(hex_string), 2))
+    # join list values with / to create relative filepath and filename
     return "/".join(hex_list) + ".data"
 
 def writeToFile(filepath, postings_list):
+    # create full filepath and directories for token 
     f_dir = os.path.dirname(filepath)
     if f_dir:
         if not os.path.exists(f_dir):
             os.makedirs(f_dir)
-    # print(filepath)
+    # write to file in binary to optimize disk usage
     with open(filepath, "wb") as file:
-        # print(vars(file))
+        # serialize postings list using pickle for given token and write to file
         pickle.dump(postings_list, file)
 
+# take current contents of inverted index in memory and write to disk
 def offloadIndex(inverted_index, partition_num):
     for token in inverted_index:
         tokenPath = INDEX_ROOT_PATH + "/part" + str(partition_num) + "/" + getTokenPath(token)
         writeToFile(tokenPath, inverted_index[token])
 
+# takes postings lists from source partition and merges with data in destination partition
+# using corresponding filepaths for each token
+# this function will really only be called with partition 0 as the destination
 def mergeIndex(source_num, dest_num):
     token_file_path_list = getListOfFiles(INDEX_ROOT_PATH + "/part" + str(source_num), "")
     for token_file_path in token_file_path_list:
@@ -77,6 +87,7 @@ def mergeIndex(source_num, dest_num):
         with open(dest_file_path, 'w+b') as dest:
             pickle.dump(dest_postings_list, dest)
 
+# merge all index partitions and delete source partition once it's empty
 def mergeIndexes(num_partitions):
     for part_num in range(1, num_partitions):
         mergeIndex(part_num, 0)
@@ -99,7 +110,7 @@ def main():
                 data = json.load(f)
                 # url = data['url']
                 # url_id[counter] = url
-                text = get_clean_text(data['content'])
+                text = getCleanText(data['content'])
                 tokens = word_tokenize(text)
                 computeWordFrequencies(freq_dict, tokens)
                 for token in set(tokens):
@@ -110,6 +121,8 @@ def main():
                 counter += 1
             if counter == 5:
                 break
+            # if index contains certain number of postings, write it to disk
+            # create new index partition for each offload operation
             if num_total_postings >= INDEX_THRESHOLD:
                 offloadIndex(inverted_index, num_partitions)
                 num_partitions += 1
