@@ -93,33 +93,31 @@ def mergeIndexes(num_partitions):
         mergeIndex(part_num, 0)
         shutil.rmtree(INDEX_ROOT_PATH + "/part" + str(part_num))
 
-def main():
+def indexer(url_dict):
     path_list = getListOfFiles(DATA_ROOT_PATH, "")
     num_total_postings = 0
     num_partitions = 0
-
-    # url_id = {}
     inverted_index = defaultdict(list)
-    counter = 0
+    doc_id = 0
     stemmer = PorterStemmer()
+
     for filepath in path_list:
         freq_dict = defaultdict(int)
         filepath = DATA_ROOT_PATH + "/" + filepath
         if os.path.isfile(filepath):
             with open(filepath) as f:
                 data = json.load(f)
-                # url = data['url']
-                # url_id[counter] = url
+                url_dict[doc_id] = data['url']
                 text = getCleanText(data['content'])
                 tokens = word_tokenize(text)
                 computeWordFrequencies(freq_dict, tokens)
                 for token in set(tokens):
                     # stem each token using porter stemming method
-                    token = stemmer.stem(token)
-                    inverted_index[token].append([counter, freq_dict[token]])
+                    token = stemmer.stem(token).lower()
+                    inverted_index[token].append([doc_id, freq_dict[token]])
                     num_total_postings += 1
-                counter += 1
-            if counter == 5:
+                doc_id += 1
+            if doc_id == 5:
                 break
             # if index contains certain number of postings, write it to disk
             # create new index partition for each offload operation
@@ -130,7 +128,4 @@ def main():
     mergeIndexes(num_partitions)                
 
     # pprint(inverted_index)
-
-if __name__ == "__main__":
-    main()
     
