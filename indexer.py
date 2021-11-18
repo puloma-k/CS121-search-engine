@@ -95,7 +95,6 @@ def mergeIndex(source_num, dest_num):
 # merge all index partitions and delete source partition once it's empty
 def mergeIndexes(num_partitions):
     for part_num in range(1, num_partitions + 1):
-        print("merging index number " + str(part_num))
         mergeIndex(part_num, 0)
         shutil.rmtree(INDEX_ROOT_PATH + "/part" + str(part_num))
 

@@ -18,13 +18,31 @@ def retriever(tokens_list):
             all_tokens_postings.append(pickle.load(path))
     # TODO: merge postings lists
     results_list = []
+    curr_postings = []
     index_list = [0 for token in tokens_list]
-    curr_doc_id = -1
 
-    # for i in range(len(all_tokens_postings)):
-    # for postings in all_tokens_postings:
-    #     for i in 
-        
+    while True:
+        for i in range(len(all_tokens_postings)):
+            curr_postings.append(all_tokens_postings[i])[index_list[i]]
+        if all(x == curr_postings[0][0] for x in curr_postings):
+            print("entered")
+            for num in index_list:
+                index_list[num] += 1
+            results_list.append(curr_postings[0][0])
+        else:
+            index_list[index_list.index(min(index_list))] += 1
+        curr_postings = []
+        print(results_list)
+            
+    
+
+
+    # 
+    # take all curent postings and put in list
+    # check if docs of all curr postings are the same
+    # if so: add doc id in results list, and increment all indexes in index list
+    # else: find first min doc id and increment corresponding index in index list
+    # clear curr postings   
 
 
 
