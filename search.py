@@ -1,6 +1,7 @@
 import pickle
 import os
 from pprint import pprint
+from nltk.tokenize import word_tokenize
 from indexer import indexer, getTokenPath
 from nltk.stem.porter import *
 
@@ -15,9 +16,36 @@ def retriever(tokens_list):
             return []
         with open(token_file_path, 'rb') as path:
             all_tokens_postings.append(pickle.load(path))
-
     # TODO: merge postings lists
     results_list = []
+    index_list = [0 for token in tokens_list]
+    curr_doc_id = -1
+
+    # for i in range(len(all_tokens_postings)):
+    # for postings in all_tokens_postings:
+    #     for i in 
+        
+
+
+
+
+
+
+
+    # for postings in all_tokens_postings:
+    #     try:
+    #         if head_posting < 0:
+    #             head_posting = postings[0][0]
+    #         else:
+    #             if head_posting != postings[0][0]:
+                    
+
+            
+    #     except (IndexError):
+    #         return results_list
+
+
+
     return results_list
 
 def main():
@@ -29,7 +57,7 @@ def main():
     while True:
         user_input = input("Enter query: ")
         # parse and stem tokens and send to retriever
-        tokens_list = user_input.split(" ")
+        tokens_list = word_tokenize(user_input)
         for index, token in enumerate(tokens_list):
             tokens_list[index] = stemmer.stem(token).lower()
         # fetch urls of docs and print results
