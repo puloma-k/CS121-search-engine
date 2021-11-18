@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import re
 import pickle
@@ -8,6 +9,13 @@ from nltk.tokenize import word_tokenize
 from nltk.stem.porter import *
 from collections import defaultdict
 from bs4 import BeautifulSoup
+
+# forcing Python seed to be non randomized
+HASH_SEED = os.getenv("PYTHONHASHSEED")
+if not HASH_SEED:
+    os.environ["PYTHONHASHSEED"] = "0"
+    os.execv(sys.executable, [sys.executable] + sys.argv)
+
 
 INDEX_THRESHOLD = 10
 INDEX_ROOT_PATH = "/Users/puloma/Code/CS121/Assignment #3/index"
@@ -28,10 +36,6 @@ def getListOfFiles(root_dir, curr_dir):
 
 def getCleanText(text):
     return re.sub(r'[^\w\s]', '', BeautifulSoup(text, "lxml").text)
-
-def computeWordFrequencies(d, tokens):
-    for token in tokens:
-            d[token] += 1
 
 # get path of directories and filename for token using hash value
 def getTokenPath(token):
@@ -89,7 +93,8 @@ def mergeIndex(source_num, dest_num):
 
 # merge all index partitions and delete source partition once it's empty
 def mergeIndexes(num_partitions):
-    for part_num in range(1, num_partitions):
+    for part_num in range(1, num_partitions + 1):
+        print("merging index number " + str(part_num))
         mergeIndex(part_num, 0)
         shutil.rmtree(INDEX_ROOT_PATH + "/part" + str(part_num))
 
@@ -101,20 +106,20 @@ def indexer(url_dict):
     doc_id = 0
     stemmer = PorterStemmer()
 
-    for filepath in path_list:
+    for source_file_path in path_list:
         freq_dict = defaultdict(int)
-        filepath = DATA_ROOT_PATH + "/" + filepath
-        if os.path.isfile(filepath):
-            with open(filepath) as f:
+        source_file_path = DATA_ROOT_PATH + "/" + source_file_path
+        if os.path.isfile(source_file_path):
+            with open(source_file_path) as f:
                 data = json.load(f)
                 url_dict[doc_id] = data['url']
                 text = getCleanText(data['content'])
-                tokens = word_tokenize(text)
-                computeWordFrequencies(freq_dict, tokens)
-                for token in set(tokens):
+                for token in word_tokenize(text):
                     # stem each token using porter stemming method
                     token = stemmer.stem(token).lower()
-                    inverted_index[token].append([doc_id, freq_dict[token]])
+                    freq_dict[token] += 1
+                for key, value in freq_dict.items():
+                    inverted_index[key].append([doc_id, value])
                     num_total_postings += 1
                 doc_id += 1
             if doc_id == 5:
@@ -123,9 +128,11 @@ def indexer(url_dict):
             # create new index partition for each offload operation
             if num_total_postings >= INDEX_THRESHOLD:
                 offloadIndex(inverted_index, num_partitions)
+                inverted_index = defaultdict(list)
                 num_partitions += 1
 
+    offloadIndex(inverted_index, num_partitions)
     mergeIndexes(num_partitions)                
-
     # pprint(inverted_index)
+    
     
