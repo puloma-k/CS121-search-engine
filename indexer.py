@@ -4,7 +4,6 @@ import json
 import re
 import pickle
 import shutil
-from collections import deque
 from pprint import pprint
 from nltk.tokenize import word_tokenize
 from nltk.stem.porter import *
@@ -19,8 +18,8 @@ if not HASH_SEED:
 
 
 INDEX_THRESHOLD = 10
-INDEX_ROOT_PATH = "/Users/puloma/Code/CS121/Assignment #3/index"
-DATA_ROOT_PATH = "/Users/puloma/Code/CS121/Assignment #3/DEV"
+INDEX_ROOT_PATH = "/Users/sahiljagad/Desktop/INDEX"
+DATA_ROOT_PATH = "/Users/sahiljagad/Desktop/DEV"
 
 # return list of relative paths to all files within given directory
 def getListOfFiles(root_dir, curr_dir):
@@ -119,12 +118,14 @@ def indexer(url_dict):
                     token = stemmer.stem(token).lower()
                     freq_dict[token] += 1
                 for key, value in freq_dict.items():
-                    inverted_index[key].append([doc_id, value])
+                    inverted_index[key].append((doc_id,value))
+                    # inverted_index[key].append([doc_id, value])
                     # print("shoudl be deque: " + str(type(inverted_index[key])))
                     # print("shoudl be list: " + str(type(inverted_index[key][0])))
                     num_total_postings += 1
                 doc_id += 1
-            if doc_id == 5:
+
+            if doc_id == 30:
                 break
             # if index contains certain number of postings, write it to disk
             # create new index partition for each offload operation

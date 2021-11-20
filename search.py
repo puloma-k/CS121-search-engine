@@ -4,8 +4,9 @@ from pprint import pprint
 from nltk.tokenize import word_tokenize
 from indexer import indexer, getTokenPath
 from nltk.stem.porter import *
+import traceback
 
-INDEX_ROOT_PATH = "/Users/puloma/Code/CS121/Assignment #3/index/part0"
+INDEX_ROOT_PATH = "//Users/sahiljagad/Desktop/INDEX/part0"
 
 def retriever(tokens_list):
     # for each token in list, get postings list
@@ -15,26 +16,43 @@ def retriever(tokens_list):
         if not os.path.exists(token_file_path):
             return []
         with open(token_file_path, 'rb') as path:
-            all_tokens_postings.append(pickle.load(path))
-    # TODO: merge postings lists
-    results_list = []
-    curr_postings = []
-    index_list = [0 for token in tokens_list]
-
-    while True:
-        for i in range(len(all_tokens_postings)):
-            curr_postings.append(all_tokens_postings[i])[index_list[i]]
-        if all(x == curr_postings[0][0] for x in curr_postings):
-            print("entered")
-            for num in index_list:
-                index_list[num] += 1
-            results_list.append(curr_postings[0][0])
-        else:
-            index_list[index_list.index(min(index_list))] += 1
-        curr_postings = []
-        print(results_list)
+            a = pickle.load(path)
+            if not isinstance(a[0],list):
+                a[0] =  [a[0]]
+            all_tokens_postings.append(a)
             
+    results_list = set()
+    curr_postings = []
+    index_list = [0 for _ in tokens_list]
+
+    # for postings in all_tokens_postings:
+    #     print(postings)
+    #     print()
     
+    while True:
+        try:
+            for i in range(len(all_tokens_postings)):
+                # print(all_tokens_postings[i][index_list[i]])
+                curr_postings.append(all_tokens_postings[i][index_list[i]])
+            # print("currpostings: " + str(curr_postings))
+            for p in curr_postings:
+                if all(x[0][0] == curr_postings[0][0][0] for x in curr_postings):
+                    # print("found a match in documents")
+                    for i in range(len(index_list)):
+                        index_list[i] += 1
+                    results_list.add(curr_postings[0][0][0])
+                    break
+                else:
+                    min_doc = min(curr_postings)
+                    index_list[curr_postings.index(min_doc)] += 1
+                    break
+            curr_postings = []
+        except Exception as e:
+            exc_obj = e
+            tb = ''.join(traceback.format_exception(None, exc_obj, exc_obj.__traceback__))
+            # print(tb)
+            # print("results list " + str(results_list))
+            return results_list
 
 
     # 
@@ -64,7 +82,7 @@ def retriever(tokens_list):
 
 
 
-    return results_list
+    #return results_list
 
 def main():
     url_dict = {}
@@ -80,6 +98,7 @@ def main():
             tokens_list[index] = stemmer.stem(token).lower()
         # fetch urls of docs and print results
         result_docs = retriever(tokens_list)
+        # print("DONE", result_docs)
         if not result_docs:
             print("No results found")
         for doc_id in result_docs:
