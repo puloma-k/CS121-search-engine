@@ -1,10 +1,9 @@
 import os
 import sys
 import json
-import re
+import math
 import pickle
 import shutil
-from pprint import pprint
 from nltk.tokenize import word_tokenize
 from nltk.stem.porter import *
 from collections import defaultdict
@@ -16,10 +15,15 @@ if not HASH_SEED:
     os.environ["PYTHONHASHSEED"] = "0"
     os.execv(sys.executable, [sys.executable] + sys.argv)
 
-
 INDEX_THRESHOLD = 10
-INDEX_ROOT_PATH = "/Users/sahiljagad/Desktop/INDEX"
-DATA_ROOT_PATH = "/Users/sahiljagad/Desktop/DEV"
+INDEX_ROOT_PATH = "/Users/puloma/Code/CS121/Assignment #3/index"
+DATA_ROOT_PATH = "/Users/puloma/Code/CS121/Assignment #3/DEV"
+SECTION_DOC_ID = 0
+SECTION_ALL = 1
+SECTION_TITLE = 2
+SECTION_HEADING = 3
+SECTION_BOLD = 4
+SECTIONS_TOTAL = 5
 
 # return list of relative paths to all files within given directory
 def getListOfFiles(root_dir, curr_dir):
@@ -34,8 +38,31 @@ def getListOfFiles(root_dir, curr_dir):
             allFiles.append(curr_dir + "/" + entry)
     return allFiles
 
-def getCleanText(text):
-    return re.sub(r'[^\w\s]', '', BeautifulSoup(text, "lxml").text)
+def getCleanText(html):
+    text_list = [None] * SECTIONS_TOTAL
+    soup = BeautifulSoup(html, 'lxml')
+
+    if soup.title is not None:
+        text_list[SECTION_TITLE] = soup.title.string
+
+    bold_tags = soup.find_all('b')
+    bold_text = []
+    for tag in bold_tags:
+        if tag.string:
+            bold_text.append(tag.string)
+    if len(bold_text) > 0:
+        text_list[SECTION_BOLD] = " ".join(bold_text)
+
+    heading_tags = soup.find_all(['h1', 'h2', 'h3'])
+    heading_text = []
+    for tag in heading_tags:
+        if tag.string:
+            heading_text.append(tag.string)
+    if len(heading_text) > 0:
+        text_list[SECTION_HEADING] = " ".join(heading_text)
+
+    text_list[SECTION_ALL] = soup.get_text(strip=True)
+    return text_list
 
 # get path of directories and filename for token using hash value
 def getTokenPath(token):
@@ -87,7 +114,7 @@ def mergeIndex(source_num, dest_num):
         with open(source_file_path, 'rb') as source:
             source_postings_list = pickle.load(source)
 
-        dest_postings_list.append(source_postings_list)
+        dest_postings_list.extend(source_postings_list)
         with open(dest_file_path, 'w+b') as dest:
             pickle.dump(dest_postings_list, dest)
 
@@ -96,6 +123,20 @@ def mergeIndexes(num_partitions):
     for part_num in range(1, num_partitions + 1):
         mergeIndex(part_num, 0)
         shutil.rmtree(INDEX_ROOT_PATH + "/part" + str(part_num))
+
+def calculateTfidf(num_docs):
+    partition_path_list = getListOfFiles(INDEX_ROOT_PATH + "/part0", "")
+    for token_file_path in partition_path_list:
+        source_file_path = INDEX_ROOT_PATH + "/part0" + token_file_path
+        with open(source_file_path, 'r+b') as source:
+            postings_list = pickle.load(source)
+            for i, posting in enumerate(postings_list):
+                posting[SECTION_ALL] = math.log10(num_docs / len(postings_list)) * posting[SECTION_ALL]
+                posting[SECTION_BOLD] = math.log10(num_docs / len(postings_list)) * posting[SECTION_BOLD]
+                posting[SECTION_TITLE] = math.log10(num_docs / len(postings_list)) * posting[SECTION_TITLE]
+                posting[SECTION_HEADING] = math.log10(num_docs / len(postings_list)) * posting[SECTION_HEADING]
+                postings_list[i] = posting
+            pickle.dump(postings_list, source)
 
 def indexer(url_dict):
     path_list = getListOfFiles(DATA_ROOT_PATH, "")
@@ -106,36 +147,52 @@ def indexer(url_dict):
     stemmer = PorterStemmer()
 
     for source_file_path in path_list:
-        freq_dict = defaultdict(int)
+        freq_dict_list = [None] * SECTIONS_TOTAL
         source_file_path = DATA_ROOT_PATH + "/" + source_file_path
         if os.path.isfile(source_file_path):
             with open(source_file_path) as f:
                 data = json.load(f)
                 url_dict[doc_id] = data['url']
-                text = getCleanText(data['content'])
-                for token in word_tokenize(text):
-                    # stem each token using porter stemming method
-                    token = stemmer.stem(token).lower()
-                    freq_dict[token] += 1
-                for key, value in freq_dict.items():
-                    inverted_index[key].append((doc_id,value))
-                    # inverted_index[key].append([doc_id, value])
-                    # print("shoudl be deque: " + str(type(inverted_index[key])))
-                    # print("shoudl be list: " + str(type(inverted_index[key][0])))
-                    num_total_postings += 1
-                doc_id += 1
+                sections_text = getCleanText(data['content'])
+                for s in range(1,SECTIONS_TOTAL):
+                    section_freq_dict = defaultdict(int)
+                    if sections_text[s] is None:
+                        continue
+                    for token in word_tokenize(sections_text[s]):
+                        # stem each token using porter stemming method
+                        token = stemmer.stem(token).lower()
+                        section_freq_dict[token] += 1
+                    freq_dict_list[s] = section_freq_dict
+        
+        for token, all_freq in freq_dict_list[SECTION_ALL].items():
+            posting = [None] * SECTIONS_TOTAL
+            posting[SECTION_DOC_ID] = doc_id
+            posting[SECTION_ALL] = all_freq
+            if freq_dict_list[SECTION_BOLD] is not None:
+                posting[SECTION_BOLD] = freq_dict_list[SECTION_BOLD].get(token, 0)
+            else:
+                posting[SECTION_BOLD] = 0
+            if freq_dict_list[SECTION_TITLE] is not None:
+                posting[SECTION_TITLE] = freq_dict_list[SECTION_TITLE].get(token, 0)
+            else:
+                posting[SECTION_TITLE] = 0
+            if freq_dict_list[SECTION_HEADING] is not None:
+                posting[SECTION_HEADING] = freq_dict_list[SECTION_HEADING].get(token, 0)
+            else:
+                posting[SECTION_HEADING] = 0
+            inverted_index[token].append(posting)
+            num_total_postings += 1
+        doc_id += 1
+        if doc_id == 5:
+            break
 
-            if doc_id == 30:
-                break
-            # if index contains certain number of postings, write it to disk
-            # create new index partition for each offload operation
-            if num_total_postings >= INDEX_THRESHOLD:
-                offloadIndex(inverted_index, num_partitions)
-                inverted_index = defaultdict(list)
-                num_partitions += 1
+        # if index contains certain number of postings, write it to disk
+        # create new index partition for each offload operation
+        if num_total_postings >= INDEX_THRESHOLD:
+            offloadIndex(inverted_index, num_partitions)
+            inverted_index = defaultdict(list)
+            num_partitions += 1
 
     offloadIndex(inverted_index, num_partitions)
-    mergeIndexes(num_partitions)                
-    # pprint(inverted_index)
-    
-    
+    mergeIndexes(num_partitions)
+    calculateTfidf(doc_id + 1)
