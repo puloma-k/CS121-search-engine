@@ -11,6 +11,7 @@ from nltk.stem.porter import *
 import traceback
 
 INDEX_ROOT_PATH = "/Users/puloma/Code/CS121/Assignment #3/index/part0"
+URL_DICT_PATH = "/Users/puloma/Code/CS121/Assignment #3/index/urls.data"
 SECTION_REGULAR_WEIGHT = 1
 SECTION_BOLD_WEIGHT = 1.25
 SECTION_TITLE_WEIGHT = 1.5
@@ -85,11 +86,13 @@ def retriever(tokens_list):
     return results_list
 
 def main():
-    url_dict = {}
     stemmer = PorterStemmer()
 
     # build index
-    indexer(url_dict)
+    indexer()
+    url_dict = {}
+    with open(URL_DICT_PATH, 'rb') as file:
+        url_dict = pickle.load(file)
 
     # get user input
     while True:

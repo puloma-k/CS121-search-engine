@@ -18,6 +18,7 @@ if not HASH_SEED:
 INDEX_THRESHOLD = 50
 INDEX_ROOT_PATH = "/Users/puloma/Code/CS121/Assignment #3/index"
 DATA_ROOT_PATH = "/Users/puloma/Code/CS121/Assignment #3/DEV"
+URL_DICT_PATH = "/Users/puloma/Code/CS121/Assignment #3/index/urls.data"
 SECTION_DOC_ID = 0
 SECTION_ALL = 1
 SECTION_TITLE = 2
@@ -138,19 +139,20 @@ def calculateTfidf(num_docs):
                 postings_list[i] = posting
             pickle.dump(postings_list, source)
 
-def indexer(url_dict):
+def indexer():
     path_list = getListOfFiles(DATA_ROOT_PATH, "")
     num_total_postings = 0
     num_partitions = 0
     inverted_index = defaultdict(list)
     doc_id = 0
     stemmer = PorterStemmer()
+    url_dict = {}    
 
     for source_file_path in path_list:
         freq_dict_list = [None] * SECTIONS_TOTAL
         source_file_path = DATA_ROOT_PATH + "/" + source_file_path
         if os.path.isfile(source_file_path):
-            with open(source_file_path) as f:
+            with open(source_file_path, encoding='utf-8') as f:
                 data = json.load(f)
                 url_dict[doc_id] = data['url']
                 sections_text = getCleanText(data['content'])
@@ -183,7 +185,7 @@ def indexer(url_dict):
             inverted_index[token].append(posting)
             num_total_postings += 1
         doc_id += 1
-        if doc_id == 30:
+        if doc_id == 5:
             break
 
         # if index contains certain number of postings, write it to disk
@@ -196,3 +198,6 @@ def indexer(url_dict):
     offloadIndex(inverted_index, num_partitions)
     mergeIndexes(num_partitions)
     calculateTfidf(doc_id + 1)
+    file = open(URL_DICT_PATH, "wb")
+    pickle.dump(url_dict, file)
+    file.close()
