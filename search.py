@@ -1,6 +1,7 @@
 import pickle
 import os
 import math
+import time
 from pprint import pprint
 from scipy import spatial
 from nltk.tokenize import word_tokenize
@@ -14,13 +15,11 @@ SECTION_REGULAR_WEIGHT = 1
 SECTION_BOLD_WEIGHT = 1.25
 SECTION_TITLE_WEIGHT = 1.5
 SECTION_HEADING_WEIGHT = 1.75
-NUM_TOTAL_DOCS = 5
+NUM_TOTAL_DOCS = 55394
 
 def cosineSimilarity(query_tfidf, all_tfidf_in_doc):
-    # print("query tfidf")
-    # print(query_tfidf)
-    # print("all tfidf")
-    # print(all_tfidf_in_doc)
+    if 0 in query_tfidf:
+        return 0
     return (1 - spatial.distance.cosine(query_tfidf, all_tfidf_in_doc))
 
 def retriever(tokens_list):
@@ -95,6 +94,8 @@ def main():
     # get user input
     while True:
         user_input = input("Enter query: ")
+        print("\n")
+        start_time = time.time()
         
         # parse and stem tokens and send to retriever
         tokens_list = word_tokenize(user_input)
@@ -103,11 +104,15 @@ def main():
 
         # fetch urls of docs and print results
         result_docs = retriever(tokens_list)
+        total_time = time.time() - start_time
+        print("Search time: " + str(total_time))
         if not result_docs:
             print("No results found")
         else:
             for doc_id, cos_sim_val in sorted(result_docs.items(), key=lambda x:x[1], reverse=True):
-                print(url_dict[doc_id] + " " + str(cos_sim_val) + "\n")
+                print(url_dict[doc_id] + "\n")
+                # print(url_dict[doc_id] + " " + str(cos_sim_val) + "\n")
+        print("\n")
 
 if __name__ == "__main__":
     main()

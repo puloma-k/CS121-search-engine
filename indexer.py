@@ -15,7 +15,7 @@ if not HASH_SEED:
     os.environ["PYTHONHASHSEED"] = "0"
     os.execv(sys.executable, [sys.executable] + sys.argv)
 
-INDEX_THRESHOLD = 10
+INDEX_THRESHOLD = 50
 INDEX_ROOT_PATH = "/Users/puloma/Code/CS121/Assignment #3/index"
 DATA_ROOT_PATH = "/Users/puloma/Code/CS121/Assignment #3/DEV"
 SECTION_DOC_ID = 0
@@ -183,7 +183,7 @@ def indexer(url_dict):
             inverted_index[token].append(posting)
             num_total_postings += 1
         doc_id += 1
-        if doc_id == 5:
+        if doc_id == 30:
             break
 
         # if index contains certain number of postings, write it to disk
